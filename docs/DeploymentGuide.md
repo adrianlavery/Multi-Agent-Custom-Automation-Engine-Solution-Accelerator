@@ -221,6 +221,30 @@ To adjust quota settings, follow these [steps](./AzureGPTQuotaSettings.md).
 
 </details>
 
+<details>
+
+  <summary><b>Frontend Hosting Configuration</b></summary>
+
+  By default, the frontend is deployed to **Azure App Service**. You can optionally deploy it to **Azure Container Apps** instead by setting the `AZURE_FRONTEND_HOSTING_TYPE` environment variable.
+
+  **To deploy frontend to Container Apps:**
+  ```shell
+  azd env set AZURE_FRONTEND_HOSTING_TYPE ContainerApps
+  ```
+
+  **To deploy frontend to App Service (default):**
+  ```shell
+  azd env set AZURE_FRONTEND_HOSTING_TYPE AppService
+  ```
+
+  **Options:**
+  - `AppService` (default): Deploys the frontend to Azure App Service
+  - `ContainerApps`: Deploys the frontend to Azure Container Apps
+
+  > **💡 Note:** Both deployment options provide the same functionality. Choose Container Apps if you prefer a more modern, serverless hosting approach, or App Service for more traditional web application hosting.
+
+</details>
+
 ### Deploying with AZD
 
 Once you've opened the project in [Codespaces](#github-codespaces), [Dev Containers](#vs-code-dev-containers), or [locally](#local-environment), you can deploy it to Azure by following these steps:

@@ -167,6 +167,13 @@ param existingLogAnalyticsWorkspaceId string = ''
 @description('Optional. Resource ID of an existing Ai Foundry AI Services resource.')
 param existingAiFoundryAiProjectResourceId string = ''
 
+@description('Optional. Frontend hosting type. Choose between App Service or Container Apps for frontend deployment.')
+@allowed([
+  'AppService'
+  'ContainerApps'
+])
+param frontendHostingType string = 'AppService'
+
 // ============== //
 // Variables      //
 // ============== //
@@ -1174,6 +1181,8 @@ module containerApp 'br/public:avm/res/app/container-app:0.18.1' = {
       allowedOrigins: [
         'https://${webSiteResourceName}.azurewebsites.net'
         'http://${webSiteResourceName}.azurewebsites.net'
+        'https://${containerAppFrontendResourceName}.${containerAppEnvironment.outputs.defaultDomain}'
+        'http://${containerAppFrontendResourceName}.${containerAppEnvironment.outputs.defaultDomain}'
       ]
       allowedMethods:[
         'GET'
@@ -1257,7 +1266,9 @@ module containerApp 'br/public:avm/res/app/container-app:0.18.1' = {
           }
           {
             name: 'FRONTEND_SITE_NAME'
-            value: 'https://${webSiteResourceName}.azurewebsites.net'
+            value: frontendHostingType == 'AppService' 
+              ? 'https://${webSiteResourceName}.azurewebsites.net' 
+              : 'https://${containerAppFrontendResourceName}.${containerAppEnvironment.outputs.defaultDomain}'
           }
           {
             name: 'AZURE_AI_AGENT_ENDPOINT'
@@ -1373,6 +1384,8 @@ module containerAppMcp 'br/public:avm/res/app/container-app:0.18.1' = {
       allowedOrigins: [
         'https://${webSiteResourceName}.azurewebsites.net'
         'http://${webSiteResourceName}.azurewebsites.net'
+        'https://${containerAppFrontendResourceName}.${containerAppEnvironment.outputs.defaultDomain}'
+        'http://${containerAppFrontendResourceName}.${containerAppEnvironment.outputs.defaultDomain}'
       ]
     }
     // WAF aligned configuration for Scalability
@@ -1453,7 +1466,7 @@ module containerAppMcp 'br/public:avm/res/app/container-app:0.18.1' = {
 // WAF best practices for Web Application Services: https://learn.microsoft.com/en-us/azure/well-architected/service-guides/app-service-web-apps
 // PSRule for Web Server Farm: https://azure.github.io/PSRule.Rules.Azure/en/rules/resource/#app-service
 var webServerFarmResourceName = 'asp-${solutionSuffix}'
-module webServerFarm 'br/public:avm/res/web/serverfarm:0.5.0' = {
+module webServerFarm 'br/public:avm/res/web/serverfarm:0.5.0' = if (frontendHostingType == 'AppService') {
   name: take('avm.res.web.serverfarm.${webServerFarmResourceName}', 64)
   params: {
     name: webServerFarmResourceName
@@ -1478,14 +1491,14 @@ module webServerFarm 'br/public:avm/res/web/serverfarm:0.5.0' = {
 
 //NOTE: AVM module adds 1 MB of overhead to the template. Keeping vanilla resource to save template size.
 var webSiteResourceName = 'app-${solutionSuffix}'
-module webSite 'modules/web-sites.bicep' = {
+module webSite 'modules/web-sites.bicep' = if (frontendHostingType == 'AppService') {
   name: take('module.web-sites.${webSiteResourceName}', 64)
   params: {
     name: webSiteResourceName
     tags: tags
     location: location
     kind: 'app,linux,container'
-    serverFarmResourceId: webServerFarm.?outputs.resourceId
+    serverFarmResourceId: webServerFarm.?outputs.?resourceId
     siteConfig: {
       linuxFxVersion: 'DOCKER|${frontendContainerRegistryHostname}/${frontendContainerImageName}:${frontendContainerImageTag}'
       minTlsVersion: '1.2'
@@ -1512,6 +1525,68 @@ module webSite 'modules/web-sites.bicep' = {
     virtualNetworkSubnetId: enablePrivateNetworking ? virtualNetwork!.outputs.webserverfarmSubnetResourceId : null
     publicNetworkAccess: 'Enabled' // Always enabling the public network access for Web App
     e2eEncryptionEnabled: true
+  }
+}
+
+// ========== Frontend Container App ========== //
+// WAF best practices for container apps: https://learn.microsoft.com/en-us/azure/well-architected/service-guides/azure-container-apps
+// PSRule for Container App: https://azure.github.io/PSRule.Rules.Azure/en/rules/resource/#container-app
+var containerAppFrontendResourceName = 'ca-frontend-${solutionSuffix}'
+module containerAppFrontend 'br/public:avm/res/app/container-app:0.18.1' = if (frontendHostingType == 'ContainerApps') {
+  name: take('avm.res.app.container-app.${containerAppFrontendResourceName}', 64)
+  params: {
+    name: containerAppFrontendResourceName
+    tags: tags
+    location: location
+    enableTelemetry: enableTelemetry
+    environmentResourceId: containerAppEnvironment.outputs.resourceId
+    managedIdentities: { userAssignedResourceIds: [userAssignedIdentity.outputs.resourceId] }
+    ingressTargetPort: 3000
+    ingressExternal: true
+    activeRevisionsMode: 'Single'
+    // WAF aligned configuration for Scalability
+    scaleSettings: {
+      maxReplicas: enableScalability ? 3 : 1
+      minReplicas: enableScalability ? 1 : 1
+      rules: [
+        {
+          name: 'http-scaler'
+          http: {
+            metadata: {
+              concurrentRequests: '100'
+            }
+          }
+        }
+      ]
+    }
+    containers: [
+      {
+        name: 'frontend'
+        image: '${frontendContainerRegistryHostname}/${frontendContainerImageName}:${frontendContainerImageTag}'
+        resources: {
+          cpu: '1.0'
+          memory: '2.0Gi'
+        }
+        env: [
+          {
+            name: 'BACKEND_API_URL'
+            value: 'https://${containerApp.outputs.fqdn}'
+          }
+          {
+            name: 'AUTH_ENABLED'
+            value: 'false'
+          }
+          {
+            name: 'PORT'
+            value: '3000'
+          }
+          {
+            name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+            value: enableMonitoring ? applicationInsights!.outputs.connectionString : ''
+          }
+        ]
+      }
+    ]
   }
 }
 
@@ -1748,7 +1823,9 @@ module keyvault 'br/public:avm/res/key-vault/vault:0.12.1' = {
 output resourceGroupName string = resourceGroup().name
 
 @description('The default url of the website to connect to the Multi-Agent Custom Automation Engine solution.')
-output webSiteDefaultHostname string = webSite.outputs.defaultHostname
+output webSiteDefaultHostname string = frontendHostingType == 'AppService' 
+  ? webSite!.outputs.defaultHostname 
+  : containerAppFrontend!.outputs.fqdn
 
 output AZURE_STORAGE_BLOB_URL string = avmStorageAccount.outputs.serviceEndpoints.blob
 output AZURE_STORAGE_ACCOUNT_NAME string = storageAccountName

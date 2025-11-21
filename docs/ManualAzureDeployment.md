@@ -32,6 +32,35 @@ Note: if you are using windows with PowerShell, the continuation character (curr
 
 The template will require you fill in locations for Cosmos and OpenAI services. This is to avoid the possibility of regional quota errors for either of these resources.
 
+### Frontend Hosting Configuration
+
+The deployment supports two options for hosting the frontend application:
+
+- **Azure App Service** (default): Traditional web app hosting
+- **Azure Container Apps**: Modern serverless container hosting
+
+To specify which hosting type to use, add the `frontendHostingType` parameter to your deployment:
+
+**For App Service (default):**
+```sh
+az deployment group create \
+  --resource-group <RG_NAME> \
+  --template-file <BICEP_FILE> \
+  --parameters frontendHostingType=AppService \
+  --name <DEPLOYMENT_NAME>
+```
+
+**For Container Apps:**
+```sh
+az deployment group create \
+  --resource-group <RG_NAME> \
+  --template-file <BICEP_FILE> \
+  --parameters frontendHostingType=ContainerApps \
+  --name <DEPLOYMENT_NAME>
+```
+
+> **Note:** Both options provide the same functionality. The backend always deploys to Container Apps. Choose the frontend hosting type based on your architectural preferences and operational requirements.
+
 ## Create the Containers
 
 - Get admin credentials from ACR

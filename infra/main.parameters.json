@@ -64,6 +64,9 @@
     },
     "existingAiFoundryAiProjectResourceId": {
       "value": "${AZURE_EXISTING_AI_PROJECT_RESOURCE_ID}"
+    },
+    "frontendHostingType": {
+      "value": "${AZURE_FRONTEND_HOSTING_TYPE=AppService}"
     }
   }
 }
