@@ -1820,8 +1820,8 @@ output resourceGroupName string = resourceGroup().name
 
 @description('The default url of the website to connect to the Multi-Agent Custom Automation Engine solution.')
 output webSiteDefaultHostname string = frontendHostingType == 'AppService' 
-  ? webSite.outputs.defaultHostname 
-  : containerAppFrontend.outputs.fqdn
+  ? webSite!.outputs.defaultHostname 
+  : containerAppFrontend!.outputs.fqdn
 
 output AZURE_STORAGE_BLOB_URL string = avmStorageAccount.outputs.serviceEndpoints.blob
 output AZURE_STORAGE_ACCOUNT_NAME string = storageAccountName
