@@ -1498,7 +1498,7 @@ module webSite 'modules/web-sites.bicep' = if (frontendHostingType == 'AppServic
     tags: tags
     location: location
     kind: 'app,linux,container'
-    serverFarmResourceId: webServerFarm.?outputs.resourceId
+    serverFarmResourceId: webServerFarm.?outputs.?resourceId
     siteConfig: {
       linuxFxVersion: 'DOCKER|${frontendContainerRegistryHostname}/${frontendContainerImageName}:${frontendContainerImageTag}'
       minTlsVersion: '1.2'
@@ -1579,6 +1579,10 @@ module containerAppFrontend 'br/public:avm/res/app/container-app:0.18.1' = if (f
           {
             name: 'PORT'
             value: '3000'
+          }
+          {
+            name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+            value: enableMonitoring ? applicationInsights!.outputs.connectionString : ''
           }
         ]
       }
