@@ -22,6 +22,7 @@ param solutionUniqueText string = take(uniqueString(subscription().id, resourceG
   'australiaeast'
   'centralus'
   'eastasia'
+  'eastus'
   'eastus2'
   'japaneast'
   'northeurope'
@@ -35,7 +36,7 @@ var deployerInfo = deployer()
 var deployingUserPrincipalId = deployerInfo.objectId
 
 // Restricting deployment to only supported Azure OpenAI regions validated with GPT-4o model
-@allowed(['australiaeast', 'eastus2', 'francecentral', 'japaneast', 'norwayeast', 'swedencentral', 'uksouth', 'westus'])
+@allowed(['australiaeast', 'eastus', 'eastus2', 'francecentral', 'japaneast', 'norwayeast', 'swedencentral', 'uksouth', 'westus'])
 @metadata({
   azd: {
     type: 'location'
