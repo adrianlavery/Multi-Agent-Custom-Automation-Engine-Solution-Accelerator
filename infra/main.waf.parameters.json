@@ -98,6 +98,9 @@
         "azconfig.io",
         "azconfig.azure.net"
       ]
+    },
+    "frontendHostingType": {
+      "value": "${AZURE_FRONTEND_HOSTING_TYPE=AppService}"
     }
   }
 }
